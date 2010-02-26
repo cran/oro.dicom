@@ -1,0 +1,203 @@
+
+R version 2.10.1 (2009-12-14)
+Copyright (C) 2009 The R Foundation for Statistical Computing
+ISBN 3-900051-07-0
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> pkgname <- "oro.dicom"
+> source(file.path(R.home("share"), "R", "examples-header.R"))
+> options(warn = 1)
+> library('oro.dicom')
+
+oro.dicom: Rigorous - DICOM Input / Output (version = 0.2.3)
+
+> 
+> assign(".oldSearch", search(), pos = 'CheckExEnv')
+> cleanEx()
+> nameEx("create")
+> ### * create
+> 
+> flush(stderr()); flush(stdout())
+> 
+> ### Name: Create
+> ### Title: Create Arrays from DICOM Headers/Images
+> ### Aliases: create3D
+> 
+> ### ** Examples
+> 
+> ## pixelData = TRUE
+> ## The DICOM image data are read from dicomSeparate()
+> dcmList <- dicomSeparate(system.file("hk-40", package="oro.dicom"))
+> dcmImage <- create3D(dcmList, mode="integer")
+> graphics::image(dcmImage[,,1], col=grey(0:64/64), axes=FALSE,
++                 xlab="", ylab="")
+> 
+> ## pixelData = FALSE
+> ## The DICOM image data are read from create3D()
+> ## This may save on memory for large batches of DICOM data
+> dcmList <- dicomSeparate(system.file("hk-40", package="oro.dicom"),
++                          pixelData=FALSE)
+> dcmImage <- create3D(dcmList, mode="integer", pixelData=FALSE)
+> graphics::image(dcmImage[,,1], col=grey(0:64/64), axes=FALSE,
++                 xlab="", ylab="")
+> 
+> 
+> 
+> cleanEx()
+> nameEx("dec2base")
+> ### * dec2base
+> 
+> flush(stderr()); flush(stdout())
+> 
+> ### Name: dec2base
+> ### Title: Convert Decimal to Base N Number in String
+> ### Aliases: dec2base dec2hex
+> ### Keywords: misc
+> 
+> ### ** Examples
+> 
+> x <- dec2base(23, 2)
+> print(x) 
+[1] "10111"
+> 
+> 
+> 
+> cleanEx()
+> nameEx("dicom2nifti")
+> ### * dicom2nifti
+> 
+> flush(stderr()); flush(stdout())
+> 
+> ### Name: dicom2nifti
+> ### Title: Convert DICOM Header to NIfTI
+> ### Aliases: dicom2nifti
+> ### Keywords: file
+> 
+> ### ** Examples
+> 
+> ## Not run: 
+> ##D ## pixelData = TRUE
+> ##D dcmList <- dicomSeparate(system.file("hk-40", package="oro.dicom"))
+> ##D dcmImage <- create3D(dcmList, mode="integer")
+> ##D ## Accumulate voxel dimensions
+> ##D pS <- header2matrix(extractHeader(dcmList$hdr, "PixelSpacing", FALSE), 2)[1,]
+> ##D sT <- extractHeader(dcmList$hdr, "SliceThickness")[1]
+> ##D pixdim <- c(0, pS, sT, rep(1,4))
+> ##D require("oro.nifti")
+> ##D dcmNifti <- nifti(dcmImage, datatype=4, pixdim=pixdim)
+> ##D par(bg="black")
+> ##D image(dcmNifti)
+> ##D orthographic(dcmNifti)
+> ## End(Not run)
+> 
+> 
+> 
+> cleanEx()
+> nameEx("dicomInfo")
+> ### * dicomInfo
+> 
+> flush(stderr()); flush(stdout())
+> 
+> ### Name: dicomInfo
+> ### Title: Read Single DICOM File
+> ### Aliases: dicomInfo
+> ### Keywords: file
+> 
+> ### ** Examples
+> 
+> x <- dicomInfo(system.file("dcm/Abdo.dcm", package="oro.dicom"))
+> graphics::image(t(x$img), col=grey(0:64/64), axes=FALSE, xlab="", ylab="")
+> 
+> x <- dicomInfo(system.file("dcm/Spine1.dcm", package="oro.dicom"))
+> graphics::image(t(x$img), col=grey(0:64/64), axes=FALSE, xlab="", ylab="")
+> 
+> 
+> 
+> cleanEx()
+> nameEx("extractHeader")
+> ### * extractHeader
+> 
+> flush(stderr()); flush(stdout())
+> 
+> ### Name: extractHeader
+> ### Title: Extract Single Field from DICOM Headers
+> ### Aliases: extractHeader
+> ### Keywords: misc
+> 
+> ### ** Examples
+> 
+> x <- dicomInfo(system.file("dcm/Abdo.dcm", package="oro.dicom"))
+> seriesDescription <- extractHeader(x$hdr, "SeriesDescription", numeric=FALSE)
+> print(seriesDescription)
+[1] "Liver/SpleeT2W/UTSE/RC$ COR    TSE   2000      100    90"
+> IOP <- extractHeader(x$hdr, "ImageOrientationPatient", numeric=FALSE)
+> print(IOP)
+[1] "1.000000 0.000000 0.000000 0.000000 0.000000 -1.000000"
+> 
+> 
+> 
+> cleanEx()
+> nameEx("header2matrix")
+> ### * header2matrix
+> 
+> flush(stderr()); flush(stdout())
+> 
+> ### Name: header2matrix
+> ### Title: Converts DICOM Header Field to a Matrix
+> ### Aliases: header2matrix
+> 
+> ### ** Examples
+> 
+> x <- dicomInfo(system.file("dcm/Abdo.dcm", package="oro.dicom"))
+> pixelSpacing <- extractHeader(x$hdr, "PixelSpacing", numeric=FALSE)
+> pSmat <- header2matrix(pixelSpacing, ncol=2)
+> IOP <- extractHeader(x$hdr, "ImageOrientationPatient", numeric=FALSE)
+> IOPmat <- header2matrix(IOP, ncol=6)
+> 
+> 
+> 
+> cleanEx()
+> nameEx("matchHeader")
+> ### * matchHeader
+> 
+> flush(stderr()); flush(stdout())
+> 
+> ### Name: matchHeader
+> ### Title: Match String to DICOM Header Field
+> ### Aliases: matchHeader
+> 
+> ### ** Examples
+> 
+> x <- dicomInfo(system.file("dcm/Abdo.dcm", package="oro.dicom"))
+> modality <- extractHeader(x$hdr, "Modality", numeric=FALSE)
+> matchHeader(modality, "mr") # case insensitive by default
+[1] TRUE
+> 
+> 
+> 
+> ### * <FOOTER>
+> ###
+> cat("Time elapsed: ", proc.time() - get("ptime", pos = 'CheckExEnv'),"\n")
+Time elapsed:  40.07 0.16 40.282 0 0 
+> grDevices::dev.off()
+null device 
+          1 
+> ###
+> ### Local variables: ***
+> ### mode: outline-minor ***
+> ### outline-regexp: "\\(> \\)?### [*]+" ***
+> ### End: ***
+> quit('no')
