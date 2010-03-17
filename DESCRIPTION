@@ -1,6 +1,6 @@
 Package: oro.dicom
-Version: 0.2.4
-Date: 2010-02-26
+Version: 0.2.5
+Date: 2010-03-17
 Title: Rigorous - DICOM Input / Output
 Author: Brandon Whitcher
 Maintainer: Brandon Whitcher <bjw34032@users.sourceforge.net>
@@ -14,6 +14,6 @@ License: BSD
 URL: http://rigorousanalytics.blogspot.com, http://rig.oro.us.com
 Repository: CRAN
 Repository/R-Forge/Project: rigorous
-Repository/R-Forge/Revision: 33
-Date/Publication: 2010-02-28 10:42:03
-Packaged: 2010-02-26 21:13:58 UTC; rforge
+Repository/R-Forge/Revision: 45
+Date/Publication: 2010-03-23 07:27:02
+Packaged: 2010-03-19 21:49:01 UTC; rforge

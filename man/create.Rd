@@ -5,6 +5,7 @@
 
 \name{Create}
 \alias{create3D}
+\alias{create4D}
 \title{Create Arrays from DICOM Headers/Images}
 \description{
   A DICOM list structure is used to produce a multi-dimensional array
@@ -12,6 +13,8 @@
 }
 \usage{
 create3D(dcm, mode = "double", transpose = TRUE, pixelData = TRUE, ...)
+create4D(dcm, W, mode = "double", transpose = TRUE, pixelData = TRUE,
+         mosaic = FALSE, ...)
 }
 \arguments{
   \item{dcm}{is the DICOM list structure (if \code{pixelData} =
@@ -26,6 +29,9 @@ create3D(dcm, mode = "double", transpose = TRUE, pixelData = TRUE, ...)
     columns from DICOM to R.}
   \item{pixelData}{is a logical variable (default = \code{TRUE}) that is
     associated with the DICOM image data being pre-loaded.}
+  \item{W}{is the fourth dimension of the array.}
+  \item{mosaic}{is a logical variable (default = \code{FALSE}) to denote
+    storage of the data in Siemens \sQuote{Mosaic} format.}
   \item{\ldots}{\ldots}
 }
 \value{
@@ -44,9 +50,13 @@ create3D(dcm, mode = "double", transpose = TRUE, pixelData = TRUE, ...)
 ## pixelData = TRUE
 ## The DICOM image data are read from dicomSeparate()
 dcmList <- dicomSeparate(system.file("hk-40", package="oro.dicom"))
+sliceLocation <- NULL
 dcmImage <- create3D(dcmList, mode="integer")
 graphics::image(dcmImage[,,1], col=grey(0:64/64), axes=FALSE,
                 xlab="", ylab="")
+dSL <- abs(diff(sliceLocation))
+plot(dSL, ylim=range(range(dSL) * 1.5, 0, 10), xlab="Index", ylab="mm",
+     main="Difference in Slice Location")
 
 ## pixelData = FALSE
 ## The DICOM image data are read from create3D()
