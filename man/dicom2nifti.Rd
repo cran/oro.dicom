@@ -11,17 +11,23 @@
   format.
 }
 \usage{
-dicom2nifti(img, hdr, units=c("mm","sec"), rescale=FALSE, 
-            descrip="SeriesDescription", ...)
+dicom2nifti(dcm, datatype=4, units=c("mm","sec"), rescale=FALSE,
+            reslice=TRUE, DIM=3, descrip="SeriesDescription",
+            aux.file=NULL, ...)
 }
 \arguments{
-  \item{img}{Multi-dimensional data volume}
-  \item{hdr}{DICOM header}
+  \item{dcm}{DICOM object containing both header and image information.}
+  \item{datatype}{...}
   \item{units}{Spatial and temporal units for \code{xyzt}}
   \item{rescale}{Should slope and intercept parameters be extracted from
     the DICOM headers and saved?}
+  \item{reslice}{Logical variable (default = \code{TRUE}) indicating if
+    the data volume should be resliced.}
+  \item{DIM}{The dimension of the array to be used (default = 3D).}
   \item{descrip}{DICOM header field(s) to be included in the
-    \code{descrip}}
+    \code{descrip} slot for the \code{nifti} class object.}
+  \item{aux.file}{Character string to be included in the \code{aux_file}
+    slot for the \code{nifti} class object.}
   \item{...}{Arguments to be passed to \code{nifti}}
 }
 \value{
@@ -38,20 +44,13 @@ dicom2nifti(img, hdr, units=c("mm","sec"), rescale=FALSE,
   \url{http://nifti.nimh.nih.gov/nifti-1}
 }
 \seealso{
-  \code{\link{dicom2analyze}}, \code{\link[dcemriS4]{nifti}}
+  \code{\link{dicom2analyze}}, \code{\link[oro.nifti]{nifti}}
 }
 \examples{
 \dontrun{
-## pixelData = TRUE
 dcmList <- dicomSeparate(system.file("hk-40", package="oro.dicom"))
-dcmImage <- create3D(dcmList, mode="integer")
-## Accumulate voxel dimensions
-pS <- header2matrix(extractHeader(dcmList$hdr, "PixelSpacing", FALSE), 2)[1,]
-sT <- extractHeader(dcmList$hdr, "SliceThickness")[1]
-pixdim <- c(0, pS, sT, rep(1,4))
 require("oro.nifti")
-dcmNifti <- nifti(dcmImage, datatype=4, pixdim=pixdim)
-par(bg="black")
+dcmNifti <- dicom2nifti(dcmList, datatype=4, mode="integer")
 image(dcmNifti)
 orthographic(dcmNifti)
 }

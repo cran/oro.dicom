@@ -32,7 +32,7 @@
 ## $Id: $
 ##
 
-getOrientation <- function(xyz) {
+getOrientation <- function(xyz, delta=0.0001) {
   oX <- ifelse(xyz[1] < 0, "R", "L")
   oY <- ifelse(xyz[2] < 0, "A", "P")
   oZ <- ifelse(xyz[3] < 0, "F", "H")
@@ -41,17 +41,16 @@ getOrientation <- function(xyz) {
   aZ <- abs(xyz[3])
 
   orientation <- NULL
-  epsilon <- 0.0001
   for (i in 1:3) {
-    if (aX > epsilon && aX > aY && aX > aZ) {
+    if (aX > delta && aX > aY && aX > aZ) {
       orientation <- paste(orientation, oX, sep="")
       aX <- 0
     } else {
-      if (aY > epsilon && aY > aX && aY > aZ) {
+      if (aY > delta && aY > aX && aY > aZ) {
         orientation <- paste(orientation, oY, sep="")
         aY <- 0
       } else {
-        if (aZ > epsilon && aZ > aX && aZ > aY) {
+        if (aZ > delta && aZ > aX && aZ > aY) {
           orientation <- paste(orientation, oZ, sep="")
           aZ <- 0
         }
@@ -61,3 +60,133 @@ getOrientation <- function(xyz) {
   return(orientation)
 }
 
+swapDimension <- function(img, dcm) {
+  imagePositionPatient <-
+    header2matrix(extractHeader(dcm$hdr, "ImagePositionPatient", FALSE), 3)
+  imageOrientationPatient <-
+    header2matrix(extractHeader(dcm$hdr, "ImageOrientationPatient", FALSE), 6)
+  ## Ensure all rows of imageOrientationPatient are identical!
+  pixelSpacing <-
+    header2matrix(extractHeader(dcm$hdr, "PixelSpacing", FALSE), 2)
+  ## Ensure all rows of pixelSpacing are identical!
+  sliceThickness <- extractHeader(dcm$hdr, "SliceThickness")
+  pixdim <- c(unique(pixelSpacing), unique(sliceThickness))
+  first.row <- getOrientation(unique(imageOrientationPatient)[1:3])
+  first.col <- getOrientation(unique(imageOrientationPatient)[4:6])
+  if (nchar(first.row) > 1 || nchar(first.col) > 1) {
+    warning("Oblique acquisition in ImageOrientationPatient (hope for the best).")
+  }
+  X <- nrow(img)
+  Y <- ncol(img)
+  Z <- dim(img)[3]
+  W <- dim(img)[4]
+  ld <- length(dim(img))
+  if (is.axial(imageOrientationPatient)) {
+    if (first.row %in% c("A","P")) {
+      index <- c(2,1,3)
+      img <- aperm(img, index)
+      pixdim <- pixdim[index]
+    }
+    if (first.row == "R") {
+      img <- switch(as.character(ld), "3" = img[X:1,,], "4" = img[X:1,,,])
+    }
+    if (first.col == "A") {
+      img <- switch(as.character(ld), "3" = img[,Y:1,], "4" = img[,Y:1,,])
+    }
+    ## The z-axis is increasing toward the HEAD of the patient.
+    z.index <- order(imagePositionPatient[,3])
+    ## x <- do.call("[<-", c(list(x), dimnames(y), list(y)))
+    img <- switch(as.character(ld), "3" = img[,,z.index], "4" = img[,,z.index,])
+    imagePositionPatient <<- imagePositionPatient[z.index,]
+  }
+  if (is.coronal(imageOrientationPatient)) {
+    if (first.row %in% c("H","F")) {
+      index <- c(2,1,3)
+      img <- aperm(img, index)
+      pixdim <- pixdim[index]
+    }
+    if (first.row == "R") {
+      img <- switch(as.character(length(dim(img))),
+                  "3" = img[X:1,,],
+                  "4" = img[X:1,,,],
+                  stop("Dimension parameter \"DIM\" incorrectly specified."))
+    }
+    if (first.col == "H") {
+      img <- img[,Y:1,]
+    }
+    ## The y-axis is increasing to the posterior side of the patient.
+    z.index <- order(imagePositionPatient[,2])
+    ## img <- img[,,z.index]
+    img <- switch(as.character(length(dim(img))),
+                  "3" = img[,,z.index],
+                  "4" = img[,,z.index,],
+                  stop("Dimension parameter \"DIM\" incorrectly specified."))
+    imagePositionPatient <<- imagePositionPatient[z.index,]
+    ##
+    index <- c(1,3,2)
+    img <- aperm(img, index) # re-organize orthogonal views
+    pixdim <- pixdim[index]
+  }
+  if (is.sagittal(imageOrientationPatient)) {
+    if (first.row %in% c("H","F")) {
+      index <- c(2,1,3)
+      img <- aperm(img, index)
+      pixdim <- pixdim[index]
+    }
+    if (first.row == "P") {
+      img <- img[X:1,,]
+    }
+    if (first.col == "H") {
+      img <- img[,Y:1,]
+    }
+    ## The x-axis is increasing to the left hand side of the patient.
+    z.index <- order(imagePositionPatient[,1])
+    ## img <- img[,,z.index]
+    img <- switch(as.character(length(dim(img))),
+                  "3" = img[,,z.index],
+                  "4" = img[,,z.index,],
+                  stop("Dimension parameter \"DIM\" incorrectly specified."))
+    imagePositionPatient <<- imagePositionPatient[z.index,]
+    ## 
+    index <- c(3,1,2)
+    img <- aperm(img, index) # re-organize orthogonal views
+    pixdim <- pixdim[index]
+  }
+  if (any(is.na(imagePositionPatient))) {
+    stop("Missing values are present in ImagePositionPatient.")
+  }
+  attr(img,"pixdim") <- pixdim
+  return(img)
+}
+
+is.axial <- function(imageOrientationPatient, axial=c("L","R","A","P")) {
+  first.row <- getOrientation(imageOrientationPatient[1,1:3])
+  first.col <- getOrientation(imageOrientationPatient[1,4:6])
+  if (nchar(first.row) > 1 || nchar(first.col) > 1) {
+    warning("Oblique acquisition in ImageOrientationPatient.")
+  }
+  return(unlist(strsplit(first.row, ""))[1] %in% axial &
+         unlist(strsplit(first.col, ""))[1] %in% axial)
+}
+
+is.coronal <- function(imageOrientationPatient,
+                       coronal=c("L","R","H","F")) {
+  first.row <- getOrientation(imageOrientationPatient[1,1:3])
+  first.col <- getOrientation(imageOrientationPatient[1,4:6])
+  if (nchar(first.row) > 1 || nchar(first.col) > 1) {
+    warning("Oblique acquisition in ImageOrientationPatient.")
+  }
+  return(unlist(strsplit(first.row, ""))[1] %in% coronal &
+         unlist(strsplit(first.col, ""))[1] %in% coronal)
+}
+
+is.sagittal <- function(imageOrientationPatient,
+                        sagittal=c("A","P","H","F")) {
+  first.row <- getOrientation(imageOrientationPatient[1,1:3])
+  first.col <- getOrientation(imageOrientationPatient[1,4:6])
+  if (nchar(first.row) > 1 || nchar(first.col) > 1) {
+    warning("Oblique acquisition in ImageOrientationPatient.")
+  }
+  return(unlist(strsplit(first.row, ""))[1] %in% sagittal &
+         unlist(strsplit(first.col, ""))[1] %in% sagittal)
+}

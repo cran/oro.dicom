@@ -12,9 +12,10 @@
   representing a single acquisition of medical imaging data.
 }
 \usage{
-create3D(dcm, mode = "double", transpose = TRUE, pixelData = TRUE, ...)
-create4D(dcm, W, mode = "double", transpose = TRUE, pixelData = TRUE,
-         mosaic = FALSE, ...)
+create3D(dcm, mode = "integer", transpose = TRUE, pixelData = TRUE,
+         mosaic = FALSE, mosaicXY = NULL)
+create4D(dcm, mode = "integer", transpose = TRUE, pixelData = TRUE,
+         mosaic = FALSE, mosaicXY = NULL, nslices = NULL, ntimes = NULL)
 }
 \arguments{
   \item{dcm}{is the DICOM list structure (if \code{pixelData} =
@@ -29,10 +30,16 @@ create4D(dcm, W, mode = "double", transpose = TRUE, pixelData = TRUE,
     columns from DICOM to R.}
   \item{pixelData}{is a logical variable (default = \code{TRUE}) that is
     associated with the DICOM image data being pre-loaded.}
-  \item{W}{is the fourth dimension of the array.}
+  \item{nslices}{is the third dimension of the array.  Attempts are made
+    to determine this number from the DICOM data.}
+  \item{ntimes}{is the fourth dimension of the array.  Attempts are made
+    to determine this number from the DICOM data.}
   \item{mosaic}{is a logical variable (default = \code{FALSE}) to denote
     storage of the data in Siemens \sQuote{Mosaic} format.}
-  \item{\ldots}{\ldots}
+  \item{mosaicXY}{is a vector of length two that provides the (x,y)
+    dimensions of the individual images.  Default behavior is to use the
+    AcquisitonMatrix to determine the (x,y) values.}
+%  \item{\ldots}{\ldots}
 }
 \value{
   Multi-dimensional array of medical imaging data.
@@ -50,12 +57,11 @@ create4D(dcm, W, mode = "double", transpose = TRUE, pixelData = TRUE,
 ## pixelData = TRUE
 ## The DICOM image data are read from dicomSeparate()
 dcmList <- dicomSeparate(system.file("hk-40", package="oro.dicom"))
-sliceLocation <- NULL
-dcmImage <- create3D(dcmList, mode="integer")
-graphics::image(dcmImage[,,1], col=grey(0:64/64), axes=FALSE,
-                xlab="", ylab="")
-dSL <- abs(diff(sliceLocation))
-plot(dSL, ylim=range(range(dSL) * 1.5, 0, 10), xlab="Index", ylab="mm",
+dcmImage <- create3D(dcmList)
+image(dcmImage[,,1], col=grey(0:64/64), axes=FALSE, xlab="", ylab="")
+imagePositionPatient <- attributes(dcmImage)$ipp
+dSL <- abs(diff(imagePositionPatient[,3]))
+plot(dSL, ylim=range(range(dSL) * 1.5, 0, 10), xlab="Image", ylab="mm",
      main="Difference in Slice Location")
 
 ## pixelData = FALSE
@@ -63,9 +69,15 @@ plot(dSL, ylim=range(range(dSL) * 1.5, 0, 10), xlab="Index", ylab="mm",
 ## This may save on memory for large batches of DICOM data
 dcmList <- dicomSeparate(system.file("hk-40", package="oro.dicom"),
                          pixelData=FALSE)
-dcmImage <- create3D(dcmList, mode="integer", pixelData=FALSE)
-graphics::image(dcmImage[,,1], col=grey(0:64/64), axes=FALSE,
-                xlab="", ylab="")
+dcmImage <- create3D(dcmList, pixelData=FALSE)
+image(dcmImage[,,1], col=grey(0:64/64), axes=FALSE, xlab="", ylab="")
+
+## mosaic = TRUE
+dcm <- dicomInfo(system.file("dcm/MR-sonata-3D-as-Tile.dcm",
+                             package="oro.dicom"))
+dcmImage <- create3D(dcm, mode="integer", mosaic=TRUE)
+image(dcmImage[,,dim(dcmImage)[3]/2], col=grey(0:64/64), axes=FALSE,
+      xlab="", ylab="")
 }
 \author{Brandon Whitcher <\email{bjw34032@users.sourceforge.net}>}
 %\keyword{}

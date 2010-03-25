@@ -32,8 +32,8 @@
 ## $Id: $
 ##
 
-create3D <- function(dcm, mode="double", transpose=TRUE, pixelData=TRUE,
-                     ...) {
+create3D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
+                     mosaic=FALSE, mosaicXY=NULL) {
   if (pixelData) {
     if (is.null(dcm$hdr)) {
       stop("DICOM \"hdr\" information is not present.")
@@ -54,44 +54,71 @@ create3D <- function(dcm, mode="double", transpose=TRUE, pixelData=TRUE,
   if (length(Y) != 1) {
     stop("Column lengths are not identical.")
   }
-  ## Check if the DICOM list has length > 1
-  Z <- ifelse(is.null(dim(dcm$img)), length(dcm$hdr), 1)
-  img <- array(0, c(X,Y,Z))
-  storage.mode(img) <- mode
-  sliceLocation <- extractHeader(dcm$hdr, "SliceLocation")
-  if (any(is.na(sliceLocation))) {
-    stop("Missing values are present in SliceLocation.")
-  }
-  if (pixelData) {
-    for (z in 1:Z) {
-      z.order <- order(sliceLocation)[z]
-      img[,,z] <- dcm$img[[z.order]]
+  if (mosaic) {
+    if (is.null(dim(dcm$img)))
+      stop("Multiple MOSAIC files detected, please use create4D()")
+    if (is.null(mosaicXY)) {
+      acquisitionMatrix <-
+        header2matrix(extractHeader(dcm$hdr, "AcquisitionMatrix", FALSE), 4)
+      x <- acquisitionMatrix[1,1]
+      y <- acquisitionMatrix[1,4]
+      if (is.na(x) || is.na(y))
+        stop("Missing AcquisitionMatrix, please specify \"mosaicXY\"")
+    } else {
+      x <- mosaicXY[1]
+      y <- mosaicXY[2]
     }
+    z <- (X/x) * (Y/y)
+    img <- array(0, c(x,y,z))
+    k <- 1
+    for (i in (X/x):1) {
+      for (j in 1:(Y/y)) {
+        img[,,k] <- dcm$img[((i-1)*x)+1:x, ((j-1)*y)+1:y]
+        k <- k+1
+      }
+    }
+    storage.mode(img) <- mode
   } else {
-    for (z in 1:Z) {
-      z.order <- order(sliceLocation)[z]
-      img[,,z] <- dicomInfo(names(dcm$hdr)[z.order])$img
+    ## Check if the DICOM list has length > 1
+    Z <- ifelse(is.null(dim(dcm$img)), length(dcm$hdr), 1)
+    img <- array(0, c(X,Y,Z))
+    storage.mode(img) <- mode
+    imagePositionPatient <-
+      header2matrix(extractHeader(dcm$hdr, "ImagePositionPatient", FALSE), 3)
+    if (any(is.na(imagePositionPatient))) {
+      stop("Missing values detected in ImagePositionPatient.")
+    }
+    movingDimensions <- apply(imagePositionPatient, 2,
+                              function(j) any(diff(j) != 0))
+    if (sum(movingDimensions) != 1) {
+      warning("ImagePositionPatient indicates oblique slices.")
+    }
+    ## sliceLocation <- extractHeader(dcm$hdr, "SliceLocation")
+    ## iop.order <- order(imagePositionPatient[,movingDimensions])
+    if (pixelData) {
+      for (z in 1:Z) {
+        ## img[,,z] <- dcm$img[[iop.order[z]]]
+        img[,,z] <- dcm$img[[z]]
+      }
+    } else {
+      for (z in 1:Z) {
+        ## img[,,z] <- dicomInfo(names(dcm$hdr)[iop.order[z]])$img
+        img[,,z] <- dicomInfo(names(dcm$hdr)[z])$img
+      }
     }
   }
+  ## imagePositionPatient <<- imagePositionPatient[iop.order,]
+  ## sliceLocation <<- sliceLocation[order(sliceLocation)]
   if (transpose) {
     img <- aperm(img, c(2,1,3))
   }
-  patientPosition <- unique(extractHeader(dcm$hdr, "PatientPosition", FALSE))
-  if (length(patientPosition) != 1) {
-    stop("PatientPosition(s) are not identical.")
-  }
-  if (patientPosition == "FFS") {
-    sliceLocation <- sliceLocation[order(sliceLocation)]
-    img <- img[,,Z:1]
-    sliceLocation <<- rev(sliceLocation)
-  } else {
-    sliceLocation <<- sliceLocation[order(sliceLocation)]
-  }
+  attr(img,"ipp") <- imagePositionPatient
   return(img)
 }
 
-create4D <- function(dcm, W, mode="double", transpose=TRUE,
-                     pixelData=TRUE, mosaic=FALSE, ...) {
+create4D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
+                     mosaic=FALSE, mosaicXY=NULL, nslices=NULL,
+                     ntimes=NULL) {
   if (pixelData) {
     if (is.null(dcm$hdr)) {
       stop("DICOM \"hdr\" information is not present.")
@@ -100,7 +127,7 @@ create4D <- function(dcm, W, mode="double", transpose=TRUE,
       stop("DICOM \"img\" information is not present.")
     }
   } else {
-    if (is.null(dcm$hdr)) {
+    if (is.null(dcm$img)) {
       dcm <- list(hdr=dcm, img=NULL) # Only a list of headers as input
     }
   }
@@ -112,24 +139,95 @@ create4D <- function(dcm, W, mode="double", transpose=TRUE,
   if (length(Y) != 1) {
     stop("Column lengths are not identical.")
   }
-  Z <- length(dcm$hdr)
-  img <- array(0, c(X,Y,Z,W))
-  storage.mode(img) <- mode
-  sliceLocation <- extractHeader(dcm$hdr, "SliceLocation")
-  if (any(is.na(sliceLocation))) {
-    stop("Missing values are present in SliceLocation.")
-  }
-  if (pixelData) {
-    for (z in 1:Z) {
-      z.order <- order(sliceLocation)[z]
-      img[,,z] <- dcm$img[[z.order]]
+  if (mosaic) {
+    if (is.null(mosaicXY)) {
+      acquisitionMatrix <-
+        header2matrix(extractHeader(dcm$hdr, "AcquisitionMatrix", FALSE), 4)
+      x <- acquisitionMatrix[1,1]
+      y <- acquisitionMatrix[1,4]
+      if (is.na(x) || x == 0 || is.na(y) || y == 0)
+        stop("Missing AcquisitionMatrix, please specify \"mosaicXY\"")
+    } else {
+      x <- mosaicXY[1]
+      y <- mosaicXY[2]
     }
+    z <- (X/x) * (Y/y)
+    ntimes <- length(dcm$hdr)
+    img <- array(0, c(x,y,z,ntimes))
+    for (w in 1:ntimes) {
+      k <- 1
+      for (i in (X/x):1) {
+        for (j in 1:(Y/y)) {
+          img[,,k,w] <- dcm$img[[w]][((i-1)*x)+1:x, ((j-1)*y)+1:y]
+          k <- k+1
+        }
+      }
+    }
+    storage.mode(img) <- mode
   } else {
-    for (z in 1:Z) {
-      z.order <- order(sliceLocation)[z]
-      img[,,z] <- dicomInfo(names(dcm$hdr)[z.order])$img
+    Z <- ifelse(is.null(dim(dcm$img)), length(dcm$hdr), 1)
+    if (Z == 1) {
+      warning(paste("Number of DICOM images is", Z, ".", sep=""))
+    }
+    cat("## X =", X, "Y =", Y, "Z =", Z, fill=TRUE)
+    ## Check if the DICOM list has length > 1
+    imagePositionPatient <-
+      header2matrix(extractHeader(dcm$hdr, "ImagePositionPatient", FALSE), 3)
+    if (any(is.na(imagePositionPatient))) {
+      stop("Missing values detected in ImagePositionPatient.")
+    }
+    movingDimensions <- apply(imagePositionPatient, 2,
+                              function(j) any(diff(j) != 0))
+    if (sum(movingDimensions) != 1) {
+      warning("ImagePositionPatient indicates oblique slices.")
+    }
+    ## Guess number of slices
+    if (is.null(nslices)) {
+      nslices <- length(unique(imagePositionPatient[,movingDimensions]))
+    }
+    cat("## nslices =", nslices, fill=TRUE)
+    if (is.null(nslices)) {
+      stop("The number of slices has not been specified/determined.")
+    }
+    ## Guess the slice order
+    instanceNumber <- extractHeader(dcm$hdr, "InstanceNumber")
+    if (length(unique(instanceNumber))) {
+      index <- order(instanceNumber)
+    } else {
+      warning("No unique slice ordering found in InstanceNumber.")
+      index <- 1:Z
+    }
+    img <- array(0, c(X,Y,nslices,Z/nslices))
+    storage.mode(img) <- mode
+    cat("index =", fill=TRUE)
+    print(index)
+    if (pixelData) {
+      for (z in 1:Z) {
+        zz <- (z - 1) %% nslices + 1
+        ww <- (z - 1) %/% nslices + 1
+        img[,,zz,ww] <- dcm$img[[index[z]]]
+      }
+    } else {
+      for (z in 1:Z) {
+        zz <- (z - 1) %% nslices + 1
+        ww <- (z - 1) %/% nslices + 1
+        img[,,zz,ww] <- dicomInfo(names(dcm$hdr)[index[z]])$img
+      }
     }
   }
-
-  return(1)
+  if (transpose) {
+    img <- aperm(img, c(2,1,3,4))
+  }
+  ## patientPosition <- unique(extractHeader(dcm$hdr, "PatientPosition", FALSE))
+  ## if (! mosaic) {
+  ##   if (patientPosition == "FFS") {
+  ##     sliceLocation <- sliceLocation[order(sliceLocation)]
+  ##     img <- img[,,Z:1,]
+  ##     sliceLocation <<- rev(sliceLocation)
+  ##   } else {
+  ##     sliceLocation <<- sliceLocation[order(sliceLocation)]
+  ##   }
+  ## }
+  attr(img,"ipp") <- imagePositionPatient
+  return(img)
 }

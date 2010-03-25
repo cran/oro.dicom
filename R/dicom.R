@@ -64,6 +64,11 @@ dicomInfo <- function(fname, endian="little", flipud=TRUE, skip128=TRUE,
 
   ## Sub-routines
   
+  readCharWithEmbeddedNuls <- function(fid, n, to="UTF-8") {
+    txt <- readBin(fid, "raw", n)
+    iconv(rawToChar(txt[txt != as.raw(0)]), to=to)
+  }
+
   unsigned.header <- function(VR, implicit, fid, endian) {
     ## "Unsigned Long" and "Unsigned Short"
     length <- ifelse(implicit,
@@ -116,43 +121,12 @@ dicomInfo <- function(fname, endian="little", flipud=TRUE, skip128=TRUE,
     }
     ## skip <- readBin(fid, integer(), size=2, endian=endian)
     ## length <- readBin(fid, integer(), size=4, endian=endian)
-    if (is.null(SQ) && length < 0) {
-      SQ <<- paste("(", group, ",", element, ")", sep="")
+    if (length < 0) { # (is.null(SQ) && length < 0) {
+      ## Append (group,element) doublets for nexted SequenceItem tags
+      SQ <<- paste(SQ, "(", group, ",", element, ")", sep="")
     }
     seek(fid, where=seek(fid) + max(0,length)) # skip over all sequence items
     list(length=length, value="sequence")
-  }
-  
-  null.header <- function(VR, group, element, fid, endian) {
-    if (VR$bytes > 0) {
-      if (! implicit) {
-        length <- readBin(fid, integer(), size=2, endian=endian)
-      }
-      ## Trim trailing white space
-      value <- sub(" +$", "",
-                   iconv(rawToChar(readBin(fid, "raw", length)), to="UTF-8"))
-      ## Replace all "\\"s with " "
-      value <- gsub("[\\]", " ", value)
-      ## Remove all non {a-zA-Z} characters with white space
-      ## value <- gsub("[^{a-zA-Z}]", " ", value)
-      if (VR$code == "UI") {
-        value <- sub("\\0", "", value) # Remove trailing \0
-      }
-    } else {
-      if (! implicit) {
-        skip <- readBin(fid, integer(), size=2, endian=endian)
-        length <- readBin(fid, integer(), size=4, endian=endian)
-      }
-      if (length >= 0 &&
-          (VR$code != "SQ" && (group != "FFFE" &&
-             (! element %in% c("E000","E00D","E0DD"))))) {
-        skip <- readBin(fid, integer(), length, size=1, endian=endian)
-        value <- "skip"
-      } else {
-        value <- "nothing matched"
-      }
-    }
-    list(length=length, value=value)
   }
   
   unknown.header <- function(VR, implicit, fid, endian) {
@@ -160,7 +134,7 @@ dicomInfo <- function(fname, endian="little", flipud=TRUE, skip128=TRUE,
       length <- ifelse(implicit,
                        readBin(fid, integer(), size=4, endian=endian),
                        readBin(fid, integer(), size=2, endian=endian))
-      value <- iconv(rawToChar(readBin(fid, "raw", length)), to="UTF-8")
+      value <- readCharWithEmbeddedNuls(fid, length)
       value <- sub(" +$", "", value) # remove white space at end
       value <- gsub("[\\]", " ", value) # remove "\\"s
     } else {
@@ -200,15 +174,16 @@ dicomInfo <- function(fname, endian="little", flipud=TRUE, skip128=TRUE,
   SQ <- NULL
   hdr <- NULL
   pixel.data <- FALSE
-  while (! pixel.data) {
+  file.size <- file.info(fname)$size
+  while (! pixel.data && ! seek(fid) >= file.size) {
     seek.old <- seek(fid)
     implicit <- FALSE
     group <- dec2hex(readBin(fid, integer(), size=2, endian=endian), 4)
     element <- dec2hex(readBin(fid, integer(), size=2, endian=endian), 4)
-    pixel.data <- ifelse(group == "7FE0" & element == "0010", TRUE, FALSE)
-    index <- which(dcm.group %in% group & dcm.element %in% element)
-    vrstr <- iconv(rawToChar(readBin(fid, "raw", 2)), to="UTF-8") # readChar(fid, n=2)
-    if (debug && length(index) != 1) {
+    pixel.data <- identical(group, "7FE0") && identical(element, "0010")
+    index <- which(dcm.group == group & dcm.element == element)
+    vrstr <- readCharWithEmbeddedNuls(fid, n=2)
+    if (debug && length(index) < 1) {
       warning(sprintf("DICOM tag (%s,%s) is not in current dictionary.",
                       group, element))
     }
@@ -218,10 +193,10 @@ dicomInfo <- function(fname, endian="little", flipud=TRUE, skip128=TRUE,
       seek(fid, where=seek(fid) - 2) # go back two bytes
       vrstr <- dicom.dic$code[index] # VR string from (group,element)
     }
-    if (any(VRindex <- VRcode %in% vrstr)) {
-      VR <- dicom.VR[VRcode %in% vrstr, ]
+    if (any(VRindex <- VRcode == vrstr)) {
+      VR <- dicom.VR[VRindex, ]
     } else {
-      VR <- dicom.VR[VRcode %in% "UN", ]
+      VR <- dicom.VR[VRcode == "UN", ] # dicom.VR[VRcode %in% "UN", ]
     }
     if (pixel.data && pixelData) {
       if (debug) {
@@ -233,8 +208,15 @@ dicomInfo <- function(fname, endian="little", flipud=TRUE, skip128=TRUE,
         skip <- readBin(fid, integer(), size=2, endian=endian)
         length <- readBin(fid, integer(), size=4, endian=endian)
       }
-      BitsAllocated <- which(hdr[, 3] %in% "BitsAllocated")[1]
-      bytes <- as.numeric(hdr[BitsAllocated, 6]) / 8
+      if (length < 0) {
+        M <- which(hdr[, 3] == "Rows")[1]
+        M <- as.numeric(hdr[M, 6])
+        N <- which(hdr[, 3] == "Columns")[1]
+        N <- as.numeric(hdr[N, 6])
+        length <- M * N
+      }
+      bitsAllocated <- which(hdr[, 3] == "BitsAllocated")[1]
+      bytes <- as.numeric(hdr[bitsAllocated, 6]) / 8
       ## Assuming only integer() data are being provided
       img <- readBin(fid, integer(), length, size=bytes, endian=endian)
       out <- list(length=length, value="")
@@ -253,31 +235,38 @@ dicomInfo <- function(fname, endian="little", flipud=TRUE, skip128=TRUE,
     }
     name <- ifelse(any(index), dicom.dic$name[index], "Unknown")
     hdr <- rbind(hdr, c(group, element, name, VR$code, out$length,
-                        out$value, ifelse(is.null(SQ), "", SQ)))
+                        paste(out$value, collapse=" "),
+                        ifelse(is.null(SQ), "", SQ)))
     if (debug) {
       cat("", seek.old, group, element, name, VR$code, out$length,
-          out$value, ifelse(is.null(SQ), "", SQ), sep="\t", fill=TRUE)
+          paste(out$value, collapse=" "),
+          ifelse(is.null(SQ), "", SQ), sep="\t", fill=TRUE)
     }
-    if (out$length > file.info(fname)$size) {
-      stop(sprintf("DICOM tag (%s,%s) has length %d bytes which is greater than the file size (%d bytes).",
-                   group, element, out$length, file.info(fname)$size))
+    if (out$length > file.size) {
+      warning(sprintf("DICOM tag (%s,%s) has length %d bytes which is greater than the file size (%d bytes).",
+                   group, element, out$length, file.size))
     }
-    if (name == "SequenceDelimitationItem") {
-      SQ <- NULL
+    if (name == "SequenceDelimitationItem" && ! is.null(SQ)) {
+      sSQ <- unlist(strsplit(SQ, "\\)\\(")) # separate (group,element) doublets
+      if ((lSQ <- length(sSQ)) > 1) {
+        SQ <- paste(sSQ[-lSQ], ")", sep="") # remove the last (group,element) doublet
+      } else {
+        SQ <- NULL # set SQ to NULL
+      }
     }
   }
   close(fid)
 
-  hdr <- as.data.frame(hdr)
-  names(hdr) <- c("group", "element", "name", "code", "length",
-                  "value", "sequence")
+  hdr <- as.data.frame(hdr, stringsAsFactors=FALSE)
+  names(hdr) <- c("group", "element", "name", "code", "length", "value",
+                  "sequence")
   hdr$name <- as.character(hdr$name)
   hdr$length <- as.numeric(hdr$length)
   hdr$value <- as.character(hdr$value)
 
-  if (pixelData) {
-    nr <- as.numeric(hdr$value[hdr$name %in% "Rows"])
-    nc <- as.numeric(hdr$value[hdr$name %in% "Columns"])
+  if (pixel.data && pixelData) {
+    nr <- as.numeric(hdr$value[hdr$name == "Rows"])
+    nc <- as.numeric(hdr$value[hdr$name == "Columns"])
     img <- t(matrix(img[1:(nc*nr)], nc, nr))
     if (flipud) {
       img <- img[nr:1,]
@@ -302,6 +291,9 @@ dicomSeparate <- function(path, verbose=FALSE, counter=100,
     filenames <- grep(exclude, filenames, value=TRUE, invert=TRUE)
   }
   nfiles <- length(filenames)
+  if (verbose) {
+    cat("  ", nfiles, "files to be processed!", fill=TRUE)
+  }
   headers <- images <- vector("list", nfiles)
   names(images) <- names(headers) <- filenames
   for (i in 1:nfiles) {
@@ -309,28 +301,41 @@ dicomSeparate <- function(path, verbose=FALSE, counter=100,
       cat("  ", i, "files processed...", fill=TRUE)
     }
     dcm <- dicomInfo(filenames[i], ...)
-    images[[i]] <- dcm$img
-    headers[[i]] <- dcm$hdr
+    if (! is.null(dcm$img)) {
+      images[[i]] <- dcm$img
+    }
+    if (! is.null(dcm$hdr)) {
+      headers[[i]] <- dcm$hdr
+    }
   }
   list(hdr=headers, img=images)
 }
 
-dicom2analyze <- function(img, hdr, descrip="SeriesDescription", ...) {
+dicom2analyze <- function(dcm, reslice=TRUE, descrip="SeriesDescription",
+                          ...) {
+  img <- create3D(dcm, ...)
+  if (reslice) {
+    img <- swapDimension(img, dcm)
+  }
   require("oro.nifti")
   aim <- oro.nifti::anlz(img, ...)
-  ## (x,y) pixel dimensions
-  aim@"pixdim"[2:3] <- as.numeric(unlist(strsplit(extractHeader(hdr, "PixelSpacing", FALSE)[1], " ")))
-  ## z pixel dimensions
-  aim@"pixdim"[4] <- ifelse(aim@"dim_"[1] > 2,
-                            extractHeader(hdr, "SliceThickness")[1],
-                            1)
+  if (is.null(attr(img,"pixdim"))) {
+    ## (x,y) pixel dimensions
+    aim@"pixdim"[2:3] <- as.numeric(unlist(strsplit(extractHeader(dcm$hdr, "PixelSpacing", FALSE)[1], " ")))
+    ## z pixel dimensions
+    aim@"pixdim"[4] <- ifelse(aim@"dim_"[1] > 2,
+                              extractHeader(dcm$hdr, "SliceThickness")[1],
+                              1)
+  } else {
+    aim@"pixdim"[2:4] <- attr(img,"pixdim")
+  }
   ## description
   for (i in 1:length(descrip))
     if (i == 1) {
-      descrip.string <- extractHeader(hdr, descrip[i], FALSE)[1]
+      descrip.string <- extractHeader(dcm$hdr, descrip[i], FALSE)[1]
     } else {
       descrip.string <- paste(descrip.string,
-                              extractHeader(hdr, descrip[i], FALSE)[1],
+                              extractHeader(dcm$hdr, descrip[i], FALSE)[1],
                               sep="; ")
     }
   if (nchar(descrip.string) > 80) {
@@ -340,51 +345,73 @@ dicom2analyze <- function(img, hdr, descrip="SeriesDescription", ...) {
     aim@"descrip" <- descrip.string
   }
   ## originator
-  aim$"originator" <- substring(extractHeader(hdr, "RequestingPhysician")[1],
+  aim$"originator" <- substring(extractHeader(dcm$hdr, "RequestingPhysician")[1],
                                 1, 10)
   ## scannum
-  aim@"scannum" <- substring(extractHeader(hdr, "StudyID")[1], 1, 10)
+  aim@"scannum" <- substring(extractHeader(dcm$hdr, "StudyID")[1], 1, 10)
   ## patient_id
-  aim@"patient_id" <- substring(extractHeader(hdr, "PatientID")[1], 1, 10)
+  aim@"patient_id" <- substring(extractHeader(dcm$hdr, "PatientID")[1], 1, 10)
   ## exp_date
-  aim@"exp_date" <- substring(extractHeader(hdr, "StudyDate")[1], 1, 10)
+  aim@"exp_date" <- substring(extractHeader(dcm$hdr, "StudyDate")[1], 1, 10)
   ## exp_time
-  aim@"exp_time" <- substring(extractHeader(hdr, "StudyTime")[1], 1, 10)
+  aim@"exp_time" <- substring(extractHeader(dcm$hdr, "StudyTime")[1], 1, 10)
   return(aim)
 }
 
-dicom2nifti <- function(img, hdr, units=c("mm","sec"), rescale=FALSE, 
-                        descrip="SeriesDescription", ...) {
+dicom2nifti <- function(dcm, datatype=4, units=c("mm","sec"), rescale=FALSE,
+                        reslice=TRUE, DIM=3, descrip="SeriesDescription",
+                        aux.file=NULL, ...) {
+  switch(as.character(DIM),
+         "2" = stop("The function create2D() is not available."), 
+         "3" = { img <- create3D(dcm, ...) },
+         "4" = { img <- create4D(dcm, ...) },
+         stop("Dimension parameter \"DIM\" incorrectly specified."))
+  if (reslice && DIM == 3) {
+    img <- swapDimension(img, dcm)
+  }
   require("oro.nifti")
-  nim <- oro.nifti::nifti(img, ...)
-  ## (x,y) pixel dimensions
-  nim@"pixdim"[2:3] <- as.numeric(unlist(strsplit(extractHeader(hdr, "PixelSpacing", FALSE)[1], " ")))
-  ## z pixel dimensions
-  nim@"pixdim"[4] <- ifelse(nim@"dim_"[1] > 2,
-                            extractHeader(hdr, "SliceThickness")[1],
-                            1)
+  nim <- oro.nifti::nifti(img, datatype=datatype)
+  if (is.null(attr(img,"pixdim"))) {
+    ## (x,y) pixel dimensions
+    pixelSpacing <- extractHeader(dcm$hdr, "PixelSpacing", FALSE)
+    nim@"pixdim"[2:3] <- header2matrix(pixelSpacing, 2)[1,]
+    ## z pixel dimensions
+    nim@"pixdim"[4] <- ifelse(nim@"dim_"[1] > 2,
+                              extractHeader(dcm$hdr, "SliceThickness")[1],
+                              1)
+  } else {
+    nim@"pixdim"[2:4] <- attr(img,"pixdim")
+  }
   ## description
-  for (i in 1:length(descrip))
+  for (i in 1:length(descrip)) {
     if (i == 1) {
-      descrip.string <- extractHeader(hdr, descrip[i], FALSE)[1]
+      descrip.string <- extractHeader(dcm$hdr, descrip[i], FALSE)[1]
     } else {
       descrip.string <- paste(descrip.string,
-                              extractHeader(hdr, descrip[i], FALSE)[1],
+                              extractHeader(dcm$hdr, descrip[i], FALSE)[1],
                               sep="; ")
     }
+  }
   if (nchar(descrip.string) > 80)
     warning("Description is greater than 80 characters and will be truncated")
   nim@"descrip" <- descrip.string
+  ## aux_file
+  if (! is.null(aux.file)) {
+    if (nchar(descrip.string) > 24) {
+      warning("aux_file is greater than 24 characters and will be truncated")
+    }
+    nim@"aux_file" <- aux.file
+  }
   ## units
   if (length(units) == 2) {
     nim@"xyzt_units" <- space.time2xyzt(units[1], units[2])
   } else {
-    stop("units must be a length=2 vector")
+    stop("units must be a length = 2 vector")
   }
-  ## rescaling (more of a CT thing?)
+  ## rescale
   if (rescale) {
-    nim@"scl_slope" <- extractHeader(hdr, "RescaleSlope")[1]
-    nim@"scl_inter" <- extractHeader(hdr, "RescaleIntercept")[1]
+    nim@"scl_slope" <- extractHeader(dcm$hdr, "RescaleSlope")[1]
+    nim@"scl_inter" <- extractHeader(dcm$hdr, "RescaleIntercept")[1]
   }
   return(nim)
 }
