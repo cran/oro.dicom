@@ -49,15 +49,23 @@ dicomTable <- function(hdrs, stringsAsFactors=FALSE, collapse="-") {
         paste(sub("^-", "", gsub("[^0-9]+", "-", hdrs[[l]]$sequence)),
               as.vector(apply(hdrs[[l]][,1:3], 1, paste, collapse=collapse)),
               sep="")
-      if (length(names(csv)) == length(names(temp)) &&
-          all(names(csv) == names(temp))) {
-        csv <- rbind(csv, temp)
+      old.nrow <- nrow(csv)
+      if (length(names(csv)) == length(names(temp))) {
+        if (all(names(csv) == names(temp))) {
+          csv <- rbind(csv, temp)
+        } else {
+          csv <- merge(csv, temp, all=TRUE, sort=FALSE)
+        }
       } else {
-        csv <- merge(csv, temp, all=TRUE)
+        csv <- merge(csv, temp, all=TRUE, sort=FALSE)
+      }
+      if (nrow(csv) == old.nrow) {
+        warning("Duplicate row was _not_ inserted in data.frame (csv)")
+        csv <- rbind(csv, NA)
       }
     }
+    row.names(csv) <- names(hdrs)
   }
-  row.names(csv) <- names(hdrs)
   return(csv)
 }
 
@@ -100,3 +108,19 @@ writeHeader <- function(dtable, filename, ...) {
   write.table(dtable, filename, quote=FALSE, sep="\t", ...)
 }
 
+nextHeader <- function(dcm, string, reference, str.warning,
+                       htmlfile=NULL, heading=3, numeric=FALSE) {
+  header <- extractHeader(dcm$hdr, string=string, numeric=numeric)
+  for (i in 1:length(reference)) {
+    if (any(matchHeader(header, string=reference[i]))) {
+      if (! is.null(htmlfile)) {
+        require("hwriter")
+        hwrite(str.warning, htmlfile, heading=3)
+      } else {
+        warning(str.warning)
+      }
+      return(expression(next))
+    }
+  }
+  invisible()
+}
