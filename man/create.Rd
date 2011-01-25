@@ -13,9 +13,10 @@
 }
 \usage{
 create3D(dcm, mode = "integer", transpose = TRUE, pixelData = TRUE,
-         mosaic = FALSE, mosaicXY = NULL)
+         mosaic = FALSE, mosaicXY = NULL, sequence = FALSE)
 create4D(dcm, mode = "integer", transpose = TRUE, pixelData = TRUE,
-         mosaic = FALSE, mosaicXY = NULL, nslices = NULL, ntimes = NULL)
+         mosaic = FALSE, mosaicXY = NULL, nslices = NULL,
+         ntimes = NULL, instance = TRUE)
 }
 \arguments{
   \item{dcm}{is the DICOM list structure (if \code{pixelData} =
@@ -30,16 +31,21 @@ create4D(dcm, mode = "integer", transpose = TRUE, pixelData = TRUE,
     columns from DICOM to R.}
   \item{pixelData}{is a logical variable (default = \code{TRUE}) that is
     associated with the DICOM image data being pre-loaded.}
-  \item{nslices}{is the third dimension of the array.  Attempts are made
-    to determine this number from the DICOM data.}
-  \item{ntimes}{is the fourth dimension of the array.  Attempts are made
-    to determine this number from the DICOM data.}
   \item{mosaic}{is a logical variable (default = \code{FALSE}) to denote
     storage of the data in Siemens \sQuote{Mosaic} format.}
   \item{mosaicXY}{is a vector of length two that provides the (x,y)
     dimensions of the individual images.  Default behavior is to use the
     AcquisitonMatrix to determine the (x,y) values.}
-%  \item{\ldots}{\ldots}
+  \item{sequence}{is a logical variable (default = \code{FALSE}) on
+    whether to look in SequenceItem entries for DICOM header
+    information.}
+  \item{nslices}{is the third dimension of the array.  Attempts are made
+    to determine this number from the DICOM data.}
+  \item{ntimes}{is the fourth dimension of the array.  Attempts are made
+    to determine this number from the DICOM data.}
+  \item{instance}{is a logical variable (default = \code{TRUE}) that
+    determines whether or not to access the \code{InstanceNumber} field
+    in the DICOM header to help order the slices.}
 }
 \value{
   Multi-dimensional array of medical imaging data.
@@ -79,5 +85,5 @@ dcmImage <- create3D(dcm, mode="integer", mosaic=TRUE)
 image(dcmImage[,,dim(dcmImage)[3]/2], col=grey(0:64/64), axes=FALSE,
       xlab="", ylab="")
 }
-\author{Brandon Whitcher <\email{bjw34032@users.sourceforge.net}>}
+\author{Brandon Whitcher \email{bjw34032@users.sourceforge.net}}
 %\keyword{}

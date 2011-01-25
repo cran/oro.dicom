@@ -11,7 +11,8 @@
   headers.
 }
 \usage{
-extractHeader(hdrs, string, numeric=TRUE, names=FALSE)
+extractHeader(hdrs, string, numeric = TRUE, names = FALSE,
+              inSequence = TRUE)
 }
 \arguments{
   \item{hdrs}{List object of DICOM headers.}
@@ -20,6 +21,8 @@ extractHeader(hdrs, string, numeric=TRUE, names=FALSE)
     \code{TRUE}.}
   \item{names}{Logical; file names are kept with elements of the
     vector.}
+  \item{inSequence}{Logical; whether or not to look into SequenceItem
+    elements.}
 }
 \details{
   The DICOM field is extracted from each DICOM header and placed into a
@@ -37,10 +40,8 @@ extractHeader(hdrs, string, numeric=TRUE, names=FALSE)
 }
 \examples{
 x <- dicomInfo(system.file("dcm/Abdo.dcm", package="oro.dicom"))
-seriesDescription <- extractHeader(x$hdr, "SeriesDescription", numeric=FALSE)
-print(seriesDescription)
-IOP <- extractHeader(x$hdr, "ImageOrientationPatient", numeric=FALSE)
-print(IOP)
+(seriesDescription <- extractHeader(x$hdr, "SeriesDescription", numeric=FALSE))
+(IOP <- extractHeader(x$hdr, "ImageOrientationPatient", numeric=FALSE))
 }
-\author{Brandon Whitcher <\email{bjw34032@users.sourceforge.net}>}
+\author{Brandon Whitcher \email{bjw34032@users.sourceforge.net}}
 \keyword{misc}

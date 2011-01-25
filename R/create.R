@@ -1,5 +1,5 @@
 ##
-## Copyright (c) 2010, Brandon Whitcher
+## Copyright (c) 2010-2011 Brandon Whitcher
 ## All rights reserved.
 ## 
 ## Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 ##
 
 create3D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
-                     mosaic=FALSE, mosaicXY=NULL) {
+                     mosaic=FALSE, mosaicXY=NULL, sequence=FALSE) {
   if (pixelData) {
     if (is.null(dcm$hdr)) {
       stop("DICOM \"hdr\" information is not present.")
@@ -46,11 +46,11 @@ create3D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
       dcm <- list(hdr=dcm, img=NULL) # Only a list of headers as input
     }
   }
-  X <- unique(extractHeader(dcm$hdr, "Rows"))
+  X <- unique(extractHeader(dcm$hdr, "Rows", inSequence=sequence))
   if (length(X) != 1) {
     stop("Row lengths are not identical.")
   }
-  Y <- unique(extractHeader(dcm$hdr, "Columns"))
+  Y <- unique(extractHeader(dcm$hdr, "Columns", inSequence=sequence))
   if (length(Y) != 1) {
     stop("Column lengths are not identical.")
   }
@@ -119,7 +119,7 @@ create3D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
 
 create4D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
                      mosaic=FALSE, mosaicXY=NULL, nslices=NULL,
-                     ntimes=NULL) {
+                     ntimes=NULL, instance=TRUE) {
   if (pixelData) {
     if (is.null(dcm$hdr)) {
       stop("DICOM \"hdr\" information is not present.")
@@ -211,7 +211,7 @@ create4D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
     }
     ## Guess the slice order
     instanceNumber <- extractHeader(dcm$hdr, "InstanceNumber")
-    if (length(unique(instanceNumber))) {
+    if (instance && length(unique(instanceNumber)) == length(dcm$hdr)) {
       index <- order(instanceNumber)
     } else {
       warning("No unique slice ordering found in InstanceNumber.")
