@@ -1,5 +1,5 @@
 ##
-## Copyright (c) 2010, Brandon Whitcher
+## Copyright (c) 2010-2011, Brandon Whitcher
 ## All rights reserved.
 ## 
 ## Redistribution and use in source and binary forms, with or without
@@ -108,7 +108,7 @@ sequence.header <- function(group, element, fid, implicit, endian,
   list(length=length, value="sequence", SQ=SQ, EOS=EOS)
 }
 
-unknown.header <- function(VR, implicit, fid, endian) {
+unknown.header <- function(VR, implicit, fid, endian, skipSQ) {
   ## Unknown header!
   if (VR$bytes > 0) {
     length <- ifelse(implicit,
@@ -124,8 +124,12 @@ unknown.header <- function(VR, implicit, fid, endian) {
       skip <- readBin(fid, integer(), size=2, endian=endian)
       length <- readBin(fid, integer(), size=4, endian=endian)
     }
-    skip <- readBin(fid, integer(), max(0,length), size=1, endian=endian)
-    value <- "skip"
+    if (skipSQ) {
+      skip <- readBin(fid, integer(), max(0,length), size=1, endian=endian)
+      value <- "skip"
+    } else {
+      value <- ""
+    }
   }
   list(length=length, value=value)
 }
@@ -261,7 +265,8 @@ dicomInfo <- function(fname, endian="little", flipud=TRUE, skip128=TRUE,
                  SQ <- out$SQ
                  EOS <- out$EOS
                },
-               { out <- unknown.header(VR, implicit, fid, endian) })
+               { out <- unknown.header(VR, implicit, fid, endian,
+                                       skipSequence) })
       }
     }
     if (is.null(SQ)) {
@@ -348,7 +353,8 @@ dicomSeparate <- function(path, verbose=FALSE, counter=100,
     filenames <- list.files(path, full.names=TRUE)
   }
   if (! is.null(exclude)) {
-    filenames <- grep(exclude, filenames, value=TRUE, invert=TRUE)
+    filenames <- grep(exclude, filenames, ignore.case=TRUE, value=TRUE,
+                      invert=TRUE)
   }
   nfiles <- length(filenames)
   if (verbose) {
@@ -419,8 +425,9 @@ dicom2analyze <- function(dcm, reslice=TRUE, descrip="SeriesDescription",
 }
 
 dicom2nifti <- function(dcm, datatype=4, units=c("mm","sec"), rescale=FALSE,
-                        reslice=TRUE, DIM=3, descrip="SeriesDescription",
-                        aux.file=NULL, ...) {
+                        reslice=TRUE, sform=TRUE, DIM=3,
+                        descrip="SeriesDescription", aux.file=NULL, ...) {
+  require("oro.nifti")
   switch(as.character(DIM),
          "2" = { img <- create3D(dcm, ...) },
          "3" = { img <- create3D(dcm, ...) },
@@ -429,7 +436,6 @@ dicom2nifti <- function(dcm, datatype=4, units=c("mm","sec"), rescale=FALSE,
   if (DIM %in% 3:4 && reslice) {
     img <- swapDimension(img, dcm)
   }
-  require("oro.nifti")
   nim <- nifti(img, datatype=datatype)
   if (is.null(attr(img,"pixdim"))) {
     ## (x,y) pixel dimensions
@@ -468,6 +474,13 @@ dicom2nifti <- function(dcm, datatype=4, units=c("mm","sec"), rescale=FALSE,
     nim@"xyzt_units" <- space.time2xyzt(units[1], units[2])
   } else {
     stop("units must be a length = 2 vector")
+  }
+  ## sform
+  if (sform) {
+    nim@"sform_code" <- 1
+    nim@"srow_x" <- c(-1,0,0,0)
+    nim@"srow_y" <- c(0,1,0,0)
+    nim@"srow_z" <- c(0,0,1,0)
   }
   ## rescale
   if (rescale) {
