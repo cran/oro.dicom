@@ -1,5 +1,5 @@
 ##
-## Copyright (c) 2010, Brandon Whitcher
+## Copyright (c) 2010-2011 Brandon Whitcher
 ## All rights reserved.
 ## 
 ## Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,34 @@
 ##
 
 dicomTable <- function(hdrs, stringsAsFactors=FALSE, collapse="-",
-                       debug=FALSE) {
+                       colSort=TRUE, debug=FALSE) {
+  myMerge <- function(df1, df2) {
+    if (anyDuplicated(names(df1)) != 0) {
+      warning("Duplicated group-element tags have been removed!")
+      df1 <- df1[, ! duplicated(names(df1))]
+    }
+    if (! all(names(df2) %in% names(df1))) {
+      newCols <- names(df2)[! names(df2) %in% names(df1)]
+      ## newcols <- setdiff(names(df2), names(df1)) # removes duplicates!
+      newDf <- as.data.frame(lapply(newCols, function(i, x) rep(NA, x),
+                                    x = nrow(df1)))
+      names(newDf) <- newCols
+      df1 <- cbind(df1, newDf)
+    }
+    if (anyDuplicated(names(df2)) != 0) {
+      warning("Duplicated group-element tags have been removed!")
+      df2 <- df2[, ! duplicated(names(df2))]
+    }
+    if (! all(names(df1) %in% names(df2))) {
+      newCols <- names(df1)[! names(df1) %in% names(df2)]
+      ## newCols <- setdiff(names(df1), names(df2)) # removes duplicates!
+      newDf <- as.data.frame(lapply(newCols, function(i, x) rep(NA, x),
+                                    x = nrow(df2)))
+      names(newDf) <- newCols
+      df2 <- cbind(df2, newDf)
+    }
+    rbind(df1, df2)
+  }
   ## Use first record to establish data.frame
   csv <- data.frame(matrix(hdrs[[1]]$value, 1, nrow(hdrs[[1]])),
                     stringsAsFactors=stringsAsFactors)
@@ -54,15 +81,16 @@ dicomTable <- function(hdrs, stringsAsFactors=FALSE, collapse="-",
               as.vector(apply(hdrs[[l]][,1:3], 1, paste, collapse=collapse)),
               sep="")
       old.nrow <- nrow(csv)
-      if (length(names(csv)) == length(names(temp))) {
-        if (all(names(csv) == names(temp))) {
-          csv <- rbind(csv, temp)
-        } else {
-          csv <- merge(csv, temp, all=TRUE, sort=FALSE)
-        }
-      } else {
-        csv <- merge(csv, temp, all=TRUE, sort=FALSE)
-      }
+      csv <- myMerge(csv, temp)
+      ##if (length(names(csv)) == length(names(temp))) {
+      ##  if (all(names(csv) == names(temp))) {
+      ##    csv <- rbind(csv, temp)
+      ##  } else {
+      ##    csv <- merge(csv, temp, all=TRUE, sort=FALSE)
+      ##  }
+      ##} else {
+      ##  csv <- merge(csv, temp, all=TRUE, sort=FALSE)
+      ##}
       if (nrow(csv) == old.nrow) {
         warning("Duplicate row was _not_ inserted in data.frame (csv)")
         csv <- rbind(csv, NA)
@@ -70,7 +98,11 @@ dicomTable <- function(hdrs, stringsAsFactors=FALSE, collapse="-",
     }
     row.names(csv) <- names(hdrs)
   }
-  return(csv)
+  if (colSort) {
+    return(csv[, order(names(csv))])
+  } else {
+    return(csv)
+  }
 }
 
 extractHeader <- function(hdrs, string, numeric=TRUE, names=FALSE,

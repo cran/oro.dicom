@@ -204,7 +204,7 @@ dicomInfo <- function(fname, endian="little", flipud=TRUE, skip128=TRUE,
   }
   ## Next four bytes spell "DICM"
   if (DICM) {
-    if (readChar(fid, n=4) != "DICM") {
+    if (readChar(fid, nchars=4) != "DICM") {
       stop("DICM != DICM")
     }
   }
@@ -357,6 +357,7 @@ dicomSeparate <- function(path, verbose=FALSE, counter=100,
                       invert=TRUE)
   }
   nfiles <- length(filenames)
+  nch <- nchar(as.character(nfiles))
   if (verbose) {
     cat("  ", nfiles, "files to be processed!", fill=TRUE)
   }
@@ -364,7 +365,8 @@ dicomSeparate <- function(path, verbose=FALSE, counter=100,
   names(images) <- names(headers) <- filenames
   for (i in 1:nfiles) {
     if (verbose && (i %% counter == 0)) {
-      cat("  ", i, "files processed...", fill=TRUE)
+      cat("  ", sprintf(paste("% ", nch, "d", sep=""), i),
+          "files processed...", fill=TRUE)
     }
     dcm <- dicomInfo(filenames[i], ...)
     if (! is.null(dcm$img)) {
@@ -377,14 +379,18 @@ dicomSeparate <- function(path, verbose=FALSE, counter=100,
   list(hdr=headers, img=images)
 }
 
-dicom2analyze <- function(dcm, reslice=TRUE, descrip="SeriesDescription",
-                          ...) {
-  img <- create3D(dcm, ...)
-  if (reslice) {
+dicom2analyze <- function(dcm, datatype=4, reslice=TRUE, DIM=3,
+                          descrip="SeriesDescription", ...) {
+  require("oro.nifti")
+  switch(as.character(DIM),
+         "2" = { img <- create3D(dcm, ...) },
+         "3" = { img <- create3D(dcm, ...) },
+         "4" = { img <- create4D(dcm, ...) },
+         stop("Dimension parameter \"DIM\" incorrectly specified."))
+  if (DIM %in% 3:4 && reslice) {
     img <- swapDimension(img, dcm)
   }
-  require("oro.nifti")
-  aim <- anlz(img, ...)
+  aim <- anlz(img, datatype=datatype)
   if (is.null(attr(img,"pixdim"))) {
     ## (x,y) pixel dimensions
     aim@"pixdim"[2:3] <- as.numeric(unlist(strsplit(extractHeader(dcm$hdr, "PixelSpacing", FALSE)[1], " ")))
@@ -410,11 +416,8 @@ dicom2analyze <- function(dcm, reslice=TRUE, descrip="SeriesDescription",
   } else {
     aim@"descrip" <- descrip.string
   }
-  ## originator
-  aim$"originator" <- substring(extractHeader(dcm$hdr, "RequestingPhysician")[1],
-                                1, 10)
   ## scannum
-  aim@"scannum" <- substring(extractHeader(dcm$hdr, "StudyID")[1], 1, 10)
+  aim@"scannum" <- unlist(substring(extractHeader(dcm$hdr, "StudyID")[1], 1, 10))
   ## patient_id
   aim@"patient_id" <- substring(extractHeader(dcm$hdr, "PatientID")[1], 1, 10)
   ## exp_date
@@ -425,7 +428,7 @@ dicom2analyze <- function(dcm, reslice=TRUE, descrip="SeriesDescription",
 }
 
 dicom2nifti <- function(dcm, datatype=4, units=c("mm","sec"), rescale=FALSE,
-                        reslice=TRUE, sform=TRUE, DIM=3,
+                        reslice=TRUE, qform=TRUE, sform=TRUE, DIM=3,
                         descrip="SeriesDescription", aux.file=NULL, ...) {
   require("oro.nifti")
   switch(as.character(DIM),
@@ -475,12 +478,20 @@ dicom2nifti <- function(dcm, datatype=4, units=c("mm","sec"), rescale=FALSE,
   } else {
     stop("units must be a length = 2 vector")
   }
+  ## qform
+  if (qform) { # Basic LAS convention corresponds to the xform matrix
+    nim@"qform_code" <- 2
+    nim@"quatern_b" <- 0
+    nim@"quatern_c" <- 1
+    nim@"quatern_d" <- 0
+    nim@"pixdim"[1] <- -1.0 # qfac
+  }
   ## sform
-  if (sform) {
-    nim@"sform_code" <- 1
-    nim@"srow_x" <- c(-1,0,0,0)
-    nim@"srow_y" <- c(0,1,0,0)
-    nim@"srow_z" <- c(0,0,1,0)
+  if (sform) { # Basic LAS convention corresponds to the xform matrix
+    nim@"sform_code" <- 2
+    nim@"srow_x" <- pixdim(nim)[2] * c(-1,0,0,0)
+    nim@"srow_y" <- pixdim(nim)[3] * c(0,1,0,0)
+    nim@"srow_z" <- pixdim(nim)[4] * c(0,0,1,0)
   }
   ## rescale
   if (rescale) {
