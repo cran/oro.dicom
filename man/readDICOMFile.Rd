@@ -3,7 +3,8 @@
 %
 % $Id: $
 
-\name{dicomInfo}
+\name{readDICOMFile}
+\alias{readDICOMFile}
 \alias{dicomInfo}
 \title{Read Single DICOM File}
 \description{
@@ -11,9 +12,9 @@
   from a DICOM file.
 }
 \usage{
-dicomInfo(fname, endian = "little", flipud = TRUE, skip128 = TRUE,
-          DICM = TRUE, skipSequence = TRUE, pixelData = TRUE,
-          warn = -1, debug = FALSE)
+readDICOMFile(fname, endian = "little", flipud = TRUE, skip128 = TRUE,
+              DICM = TRUE, skipSequence = TRUE, pixelData = TRUE,
+              warn = -1, debug = FALSE)
 }
 \arguments{
   \item{fname}{is the file name of the DICOM image (with suffix).}
@@ -32,6 +33,8 @@ dicomInfo(fname, endian = "little", flipud = TRUE, skip128 = TRUE,
     -1).  See \code{options} for more details.}
   \item{debug}{is a logical variable (default = \code{FALSE}) that
     regulates to display of intermediate processing steps.}
+  %\item{rowBuffer}{is the maximum number of DICOM header fields allowed
+  %  to be read in (adjust when necessary).}
 }
 \details{
   A \code{while} loop is used to traverse the unknown number of DICOM
@@ -48,19 +51,26 @@ dicomInfo(fname, endian = "little", flipud = TRUE, skip128 = TRUE,
   }
 }
 \references{
+  Whitcher, B., V. J. Schmid and A. Thornton (2011).  Working with the
+  DICOM and NIfTI Data Standards in R, \emph{Journal of Statistical
+    Software}, \bold{44} (6), 1--28.
+  \url{http://www.jstatsoft.org/v44/i06}
+
   Digital Imaging and Communications in Medicine (DICOM)\cr
   \url{http://medical.nema.org}\cr
   \url{http://en.wikipedia.org/wiki/Digital_Imaging_and_Communications_in_Medicine}
 }
 \seealso{
-  \code{\link{dicomSeparate}}
+  \code{\link{readDICOM}}
 }
 \examples{
-x <- dicomInfo(system.file("dcm/Abdo.dcm", package="oro.dicom"))
-graphics::image(t(x$img), col=grey(0:64/64), axes=FALSE, xlab="", ylab="")
+x <- readDICOMFile(system.file("dcm/Abdo.dcm", package="oro.dicom"))
+graphics::image(x$img, col=grey(0:64/64), axes=FALSE, xlab="", ylab="",
+                main="Abdo.dcm")
 
-x <- dicomInfo(system.file("dcm/Spine1.dcm", package="oro.dicom"))
-graphics::image(t(x$img), col=grey(0:64/64), axes=FALSE, xlab="", ylab="")
+x <- readDICOMFile(system.file("dcm/Spine1.dcm", package="oro.dicom"))
+graphics::image(x$img, col=grey(0:64/64), axes=FALSE, xlab="", ylab="",
+                main="Spine1.dcm")
 }
 \author{Brandon Whitcher \email{bjw34032@users.sourceforge.net}}
 \keyword{file}
