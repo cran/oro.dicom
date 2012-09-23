@@ -1,5 +1,5 @@
 
-R version 2.15.2 Patched (2012-12-18 r61375) -- "Trick or Treat"
+R version 2.15.0 (2012-03-30)
 Copyright (C) 2012 The R Foundation for Statistical Computing
 ISBN 3-900051-07-0
 Platform: x86_64-unknown-linux-gnu (64-bit)
@@ -22,46 +22,11 @@ Type 'q()' to quit R.
 > source(file.path(R.home("share"), "R", "examples-header.R"))
 > options(warn = 1)
 > library('oro.dicom')
-Loading required package: oro.nifti
-Loading required package: bitops
 
-oro.nifti: Rigorous - NIfTI+ANALYZE+AFNI Input / Output (version = 0.3.8)
-
-
-oro.dicom: Rigorous - DICOM Input / Output (version = 0.3.7)
+oro.dicom: Rigorous - DICOM Input / Output (version = 0.3.6)
 
 > 
 > assign(".oldSearch", search(), pos = 'CheckExEnv')
-> cleanEx()
-> nameEx("JpegComponentInfo")
-> ### * JpegComponentInfo
-> 
-> flush(stderr()); flush(stdout())
-> 
-> ### Name: JpegComponentInfo
-> ### Title: Constructor for JPEG Component Information
-> ### Aliases: JpegComponentInfo
-> ### Keywords: classes
-> 
-> ### ** Examples
-> 
-> jpegCI <- JpegComponentInfo(1, 2, 3, 4)
-> 
-> jpegCI. <- list(componentID=as.raw(1), componentIndex=as.raw(2),
-+                 hSampFactor=as.raw(3), vSampFactor=as.raw(4))
-> class(jpegCI.) <- 'JpegComponentInfo'
-> 
-> ## Don't show: 
-> stopifnot(
-+ ## End Don't show
-+ all.equal(jpegCI, jpegCI.)
-+ ## Don't show: 
-+ )
-> ## End Don't show
-> 
-> 
-> 
-> 
 > cleanEx()
 > nameEx("create")
 > ### * create
@@ -321,78 +286,12 @@ Warning in is.sagittal(iop) :
 > graphics::image(t(x$img), col=grey(0:64/64), axes=FALSE, xlab="", ylab="",
 +                 main="Spine1.dcm")
 > 
-> cK <- system.file('jpeg/cervicalKyphosis.dcm', package='oro.dicom')
-> x.jpeg <- readDICOMFile(cK)
-> 
-> 
-> 
-> 
-> cleanEx()
-> nameEx("subRaw")
-> ### * subRaw
-> 
-> flush(stderr()); flush(stdout())
-> 
-> ### Name: subRaw
-> ### Title: Pattern Replacement for Raw Vectors
-> ### Aliases: subRaw
-> 
-> ### ** Examples
-> 
-> ##
-> ## example
-> ##
-> abcdef <- charToRaw('abcdef')
-> ab. <- subRaw(charToRaw('ab'), charToRaw('d'), abcdef)
-> 
-> # replace first two bytes
-> ## Don't show: 
-> stopifnot(
-+ ## End Don't show
-+ all.equal(ab., charToRaw('dcdef') )
-+ ## Don't show: 
-+ )
-> ## End Don't show
-> 
-> # replace lst two bytes
-> ## Don't show: 
-> stopifnot(
-+ ## End Don't show
-+ all.equal(subRaw(charToRaw('ef'), charToRaw('g'), abcdef),
-+           charToRaw('abcdg') )
-+ ## Don't show: 
-+ )
-> ## End Don't show
-> 
-> # replace nothing
-> ## Don't show: 
-> stopifnot(
-+ ## End Don't show
-+ all.equal(subRaw(charToRaw('noop'), charToRaw('c'), abcdef),
-+           abcdef )
-+ ## Don't show: 
-+ )
-> ## End Don't show
-> 
-> # replace all
-> ababab <- charToRaw('ababab')
-> ab3 <- subRaw(charToRaw('ab'), charToRaw('g'), ababab,
-+                all=TRUE)
-> 
-> ## Don't show: 
-> stopifnot(
-+ ## End Don't show
-+ all.equal(ab3, charToRaw('ggg') )
-+ ## Don't show: 
-+ )
-> ## End Don't show
-> 
 > 
 > 
 > ### * <FOOTER>
 > ###
 > cat("Time elapsed: ", proc.time() - get("ptime", pos = 'CheckExEnv'),"\n")
-Time elapsed:  2.98 0.076 3.115 0 0 
+Time elapsed:  1.56 0.07 1.643 0 0 
 > grDevices::dev.off()
 null device 
           1 
