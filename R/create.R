@@ -1,5 +1,5 @@
 ##
-## Copyright (c) 2010-2011 Brandon Whitcher
+## Copyright (c) 2010-2014 Brandon Whitcher
 ## All rights reserved.
 ## 
 ## Redistribution and use in source and binary forms, with or without
@@ -97,13 +97,13 @@ create3D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
       warning("ImagePositionPatient is moving in more than one dimension.")
     }
     if (pixelData) {
-      for (z in 1:Z) {
-        img[,,z] <- dcm$img[[z]]
-      }
+        for (z in 1:Z) {
+            img[,,z] <- dcm$img[[z]]
+        }
     } else {
-      for (z in 1:Z) {
-        img[,,z] <- rereadDICOMFile(names(dcm$hdr)[z])$img
-      }
+        for (z in 1:Z) {
+            img[,,z] <- readDICOMFile(names(dcm$hdr)[z])$img
+        }
     }
   }
   ## imagePositionPatient <<- imagePositionPatient[iop.order,]
@@ -183,7 +183,7 @@ create4D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
     } else {
       for (w in 1:ntimes) {
         k <- 1
-        dicomInfoImage <- rereadDICOMFile(names(dcm$hdr)[w])$img
+        dicomInfoImage <- readDICOMFile(names(dcm$hdr)[w])$img
         for (i in (X/x):1) {
           for (j in 1:(Y/y)) {
             img[,,k,w] <- dicomInfoImage[((i-1)*x)+1:x, ((j-1)*y)+1:y]
@@ -235,7 +235,7 @@ create4D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
       for (z in 1:Z) {
         zz <- (z - 1) %% nslices + 1
         ww <- (z - 1) %/% nslices + 1
-        img[,,zz,ww] <- rereadDICOMFile(names(dcm$hdr)[index[z]])$img
+        img[,,zz,ww] <- readDICOMFile(names(dcm$hdr)[index[z]])$img
       }
     }
   }

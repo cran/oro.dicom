@@ -5,7 +5,6 @@
 
 \name{readDICOMFile}
 \alias{parseDICOMHeader}
-\alias{rereadDICOMFile}
 \alias{readDICOMFile}
 \alias{dicomInfo}
 \title{Read Single DICOM File}
@@ -14,12 +13,9 @@
   from a DICOM file.
 }
 \usage{
-readDICOMFile(fname, endian = "little", flipud = TRUE, skip128 = TRUE,
-              DICM = TRUE, skipSequence = TRUE, pixelData = TRUE,
+readDICOMFile(fname, endian = "little", flipud = TRUE,
+              DICM = TRUE, skipSequence = FALSE, pixelData = TRUE,
               warn = -1, debug = FALSE)
-rereadDICOMFile(fname, endian = "little", flipud = TRUE, DICM = TRUE, 
-                skipSequence = FALSE, readPixelData = TRUE,
-                warn = -1, debug = FALSE)
 parseDICOMHeader(rawString, sq.txt = "", endian = "little", 
                  verbose = FALSE)
 }
@@ -28,16 +24,14 @@ parseDICOMHeader(rawString, sq.txt = "", endian = "little",
   \item{endian}{is the endian-ness of the file (default is \code{"little"}).}
   \item{flipud}{is a logical variable for vertical flipping of the image
     (default is \code{TRUE}).}
-  \item{skip128}{is a logical variable to skip the first 128 bytes in
-    the file (default = \code{TRUE}).}
   \item{DICM}{is a logical variable to read in the four bytes \dQuote{DICM}
     (default = \code{TRUE}).}
   \item{skipSequence}{is a logical variable to skip all content
     contained in SequenceItem tags (default = \code{TRUE}).}
   \item{pixelData}{is a logical variable (default = \code{TRUE}) on
-    whether or not the PixelData should be read from the DICOM files.}
-  \item{readPixelData}{is a logical variable (default = \code{TRUE}) on
-    whether or not the PixelData should be read from the DICOM files.}
+    whether or not the PixelData should be read from the DICOM files.  This 
+    is useful when one wants to gather the DICOM header information without 
+    loading the images.}
   \item{warn}{is a number to regulate the display of warnings (default =
     -1).  See \code{options} for more details.}
   \item{debug}{is a logical variable (default = \code{FALSE}) that
@@ -80,11 +74,11 @@ parseDICOMHeader(rawString, sq.txt = "", endian = "little",
   \code{\link{readDICOM}}
 }
 \examples{
-x <- rereadDICOMFile(system.file("dcm/Abdo.dcm", package="oro.dicom"))
+x <- readDICOMFile(system.file("dcm/Abdo.dcm", package="oro.dicom"))
 graphics::image(t(x$img), col=grey(0:64/64), axes=FALSE, xlab="", ylab="",
                 main="Abdo.dcm")
 
-x <- rereadDICOMFile(system.file("dcm/Spine1.dcm", package="oro.dicom"))
+x <- readDICOMFile(system.file("dcm/Spine1.dcm", package="oro.dicom"))
 graphics::image(t(x$img), col=grey(0:64/64), axes=FALSE, xlab="", ylab="",
                 main="Spine1.dcm")
 }

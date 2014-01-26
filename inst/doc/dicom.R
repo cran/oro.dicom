@@ -36,6 +36,7 @@ load(system.file("hk-40/hk40.RData", package="oro.dicom"))
 ### code chunk number 5: DICOM HK40 01 (eval = FALSE)
 ###################################################
 ## fname <- system.file("hk-40", package="oro.dicom")
+## data(dicom.dic)
 ## hk40 <- readDICOM(fname)
 
 
