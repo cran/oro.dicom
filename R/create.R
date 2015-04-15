@@ -32,6 +32,73 @@
 ## $Id: $
 ##
 
+#' Create Arrays from DICOM Headers/Images
+#' 
+#' A DICOM list structure is used to produce a multi-dimensional array
+#' representing a single acquisition of medical imaging data.
+#' 
+#' 
+#' @aliases create3D create4D
+#' @param dcm is the DICOM list structure (if \code{pixelData} = \code{TRUE})
+#' or the DICOM header information (if \code{pixelData} = \code{FALSE}).
+#' @param mode is a valid character string for \code{storage.mode}.
+#' @param transpose is available in order to switch the definition of rows and
+#' columns from DICOM (default = \code{TRUE}.
+#' @param pixelData is a logical variable (default = \code{TRUE}) that is
+#' associated with the DICOM image data being pre-loaded.
+#' @param mosaic is a logical variable (default = \code{FALSE}) to denote
+#' storage of the data in Siemens \sQuote{Mosaic} format.
+#' @param mosaicXY is a vector of length two that provides the (x,y) dimensions
+#' of the individual images.  Default behavior is to use the AcquisitonMatrix
+#' to determine the (x,y) values.
+#' @param sequence is a logical variable (default = \code{FALSE}) on whether to
+#' look in SequenceItem entries for DICOM header information.
+#' @param nslices is the third dimension of the array.  Attempts are made to
+#' determine this number from the DICOM data.
+#' @param ntimes is the fourth dimension of the array.  Attempts are made to
+#' determine this number from the DICOM data.
+#' @param instance is a logical variable (default = \code{TRUE}) that
+#' determines whether or not to access the \code{InstanceNumber} field in the
+#' DICOM header to help order the slices.
+#' @return Multi-dimensional array of medical imaging data.
+#' @author Brandon Whitcher \email{bwhitcher@@gmail.com}
+#' @seealso \code{\link{array}}, \code{\link{readDICOM}},
+#' \code{\link{storage.mode}}
+#' @references Digital Imaging and Communications in Medicine (DICOM)\cr
+#' \url{http://medical.nema.org}
+#' @examples
+#' 
+#' load(system.file("hk-40/hk40.RData", package="oro.dicom"))
+#' dcmList <- hk40
+#' dcmImage <- create3D(dcmList)
+#' image(dcmImage[,,1], col=grey(0:64/64), axes=FALSE, xlab="", ylab="",
+#'       main=paste("First Slice from HK-40"))
+#' imagePositionPatient <- attributes(dcmImage)$ipp
+#' dSL <- abs(diff(imagePositionPatient[,3]))
+#' plot(dSL, ylim=range(range(dSL) * 1.5, 0, 10), xlab="Image", ylab="mm",
+#'      main="Difference in Slice Location")
+#' 
+#' \dontrun{
+#' ## pixelData = FALSE
+#' ## The DICOM image data are read from create3D()
+#' ## This may save on memory for large batches of DICOM data
+#' dcmList <- readDICOM(system.file("hk-40", package="oro.dicom"),
+#'                      pixelData=FALSE)
+#' dcmImage <- create3D(dcmList, pixelData=FALSE)
+#' image(dcmImage[,,1], col=grey(0:64/64), axes=FALSE, xlab="", ylab="",
+#'       main=paste("First Slice from HK-40 (again)"))
+#' }
+#' ## mosaic = TRUE
+#' mosaicFile <- system.file("dcm/MR-sonata-3D-as-Tile.dcm", package="oro.dicom")
+#' dcm <- readDICOMFile(mosaicFile)
+#' image(t(dcm$img), col=grey(0:64/64), axes=FALSE, xlab="", ylab="",
+#'       main="Siemens MOSAIC")
+#' dcmImage <- create3D(dcm, mode="integer", mosaic=TRUE)
+#' z <- trunc(dim(dcmImage)[3]/2)
+#' image(dcmImage[,,z], col=grey(0:64/64), axes=FALSE, xlab="", ylab="",
+#'       main=paste("Slice", z, "from Siemens MOSAIC"))
+#' 
+#' @export create3D
 create3D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
                      mosaic=FALSE, mosaicXY=NULL, sequence=FALSE) {
   if (pixelData) {
@@ -80,7 +147,10 @@ create3D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
       }
     }
     storage.mode(img) <- mode
-    imagePositionPatient <- cbind(X,Y,1:z)
+    imagePositionPatient <- cbind(X, Y, 1:z)
+    imageOrientationPatient <-
+      header2matrix(extractHeader(dcm$hdr, "ImageOrientationPatient", FALSE), 6)
+    imageOrientationPatient <- matrix(imageOrientationPatient, z, 6, byrow=TRUE)
   } else {
     ## Check if the DICOM list has length > 1
     Z <- ifelse(is.null(dim(dcm$img)), length(dcm$hdr), 1)
@@ -91,7 +161,12 @@ create3D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
     if (any(is.na(imagePositionPatient))) {
       stop("Missing values detected in ImagePositionPatient.")
     }
-    movingDimensions <- apply(imagePositionPatient, 2,
+    imageOrientationPatient <-
+      header2matrix(extractHeader(dcm$hdr, "ImageOrientationPatient", FALSE), 6)
+    if (any(is.na(imageOrientationPatient))) {
+      stop("Missing values detected in ImageOrientationPatient.")
+    }
+      movingDimensions <- apply(imagePositionPatient, 2,
                               function(j) any(diff(j) != 0))
     if (sum(movingDimensions) != 1) {
       warning("ImagePositionPatient is moving in more than one dimension.")
@@ -106,15 +181,15 @@ create3D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
         }
     }
   }
-  ## imagePositionPatient <<- imagePositionPatient[iop.order,]
-  ## sliceLocation <<- sliceLocation[order(sliceLocation)]
   if (transpose) {
     img <- aperm(img, c(2,1,3))
   }
   attr(img, "ipp") <- imagePositionPatient
+  attr(img, "iop") <- imageOrientationPatient
   return(img)
 }
-
+#' @rdname create3D
+#' @export create4D
 create4D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
                      mosaic=FALSE, mosaicXY=NULL, nslices=NULL,
                      ntimes=NULL, instance=TRUE, sequence=FALSE) {
@@ -204,7 +279,6 @@ create4D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
       warning("ImagePositionPatient indicates oblique slices, assuming transverse acquisition.")
       movingDimensions <- c(FALSE, FALSE, TRUE)
     }
-    ## print(movingDimensions)
     ## Guess number of slices
     if (is.null(nslices)) {
       nslices <- length(unique(imagePositionPatient[,movingDimensions]))
@@ -223,8 +297,6 @@ create4D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
     }
     img <- array(0, c(X,Y,nslices,Z/nslices))
     storage.mode(img) <- mode
-    ## cat("index =", fill=TRUE)
-    ## print(index)
     if (pixelData) {
       for (z in 1:Z) {
         zz <- (z - 1) %% nslices + 1
@@ -242,16 +314,6 @@ create4D <- function(dcm, mode="integer", transpose=TRUE, pixelData=TRUE,
   if (transpose) {
     img <- aperm(img, c(2,1,3,4))
   }
-  ## patientPosition <- unique(extractHeader(dcm$hdr, "PatientPosition", FALSE))
-  ## if (! mosaic) {
-  ##   if (patientPosition == "FFS") {
-  ##     sliceLocation <- sliceLocation[order(sliceLocation)]
-  ##     img <- img[,,Z:1,]
-  ##     sliceLocation <<- rev(sliceLocation)
-  ##   } else {
-  ##     sliceLocation <<- sliceLocation[order(sliceLocation)]
-  ##   }
-  ## }
   attr(img, "ipp") <- imagePositionPatient
   return(img)
 }
