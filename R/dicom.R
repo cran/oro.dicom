@@ -70,6 +70,7 @@
 #' }
 #' 
 #' @export readDICOM
+#' @importFrom utils setTxtProgressBar txtProgressBar write.table
 readDICOM <- function(path, recursive=TRUE, exclude=NULL, verbose=FALSE,
                       counter, ...) {
   if (length(list.files(path)) == 0 && file.exists(path)) {
@@ -86,6 +87,9 @@ readDICOM <- function(path, recursive=TRUE, exclude=NULL, verbose=FALSE,
                       invert=TRUE)
   }
   nfiles <- length(filenames)
+  if (nfiles == 0) {
+    stop("No files found in path")
+  }
   nch <- nchar(as.character(nfiles))
   headers <- images <- vector("list", nfiles)
   names(images) <- names(headers) <- filenames

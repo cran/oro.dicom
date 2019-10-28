@@ -1,7 +1,7 @@
 
-R version 3.1.2 (2014-10-31) -- "Pumpkin Helmet"
-Copyright (C) 2014 The R Foundation for Statistical Computing
-Platform: x86_64-unknown-linux-gnu (64-bit)
+R version 3.3.2 (2016-10-31) -- "Sincere Pumpkin Patch"
+Copyright (C) 2016 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin13.4.0 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
 You are welcome to redistribute it under certain conditions.
@@ -21,9 +21,7 @@ Type 'q()' to quit R.
 > source(file.path(R.home("share"), "R", "examples-header.R"))
 > options(warn = 1)
 > library('oro.dicom')
-
-oro.dicom: Rigorous - DICOM Input / Output (version = 0.5.0)
-
+oro.dicom 0.5.3
 > 
 > base::assign(".oldSearch", base::search(), pos = 'CheckExEnv')
 > cleanEx()
@@ -37,6 +35,7 @@ oro.dicom: Rigorous - DICOM Input / Output (version = 0.5.0)
 > ### Aliases: create3D create4D
 > 
 > ### ** Examples
+> 
 > 
 > load(system.file("hk-40/hk40.RData", package="oro.dicom"))
 > dcmList <- hk40
@@ -70,6 +69,7 @@ oro.dicom: Rigorous - DICOM Input / Output (version = 0.5.0)
 > 
 > 
 > 
+> 
 > cleanEx()
 > nameEx("dec2base")
 > ### * dec2base
@@ -83,7 +83,9 @@ oro.dicom: Rigorous - DICOM Input / Output (version = 0.5.0)
 > 
 > ### ** Examples
 > 
+> 
 > x <- dec2base(23, 2)
+> 
 > 
 > 
 > 
@@ -100,6 +102,7 @@ oro.dicom: Rigorous - DICOM Input / Output (version = 0.5.0)
 > 
 > ### ** Examples
 > 
+> 
 > ## Not run: 
 > ##D dcmList <- dicomSeparate(system.file("hk-40", package="oro.dicom"))
 > ##D require("oro.nifti")
@@ -107,6 +110,7 @@ oro.dicom: Rigorous - DICOM Input / Output (version = 0.5.0)
 > ##D image(dcmAnlz)
 > ##D orthographic(dcmAnlz)
 > ## End(Not run)
+> 
 > 
 > 
 > 
@@ -123,6 +127,7 @@ oro.dicom: Rigorous - DICOM Input / Output (version = 0.5.0)
 > 
 > ### ** Examples
 > 
+> 
 > ## Not run: 
 > ##D dcmList <- dicomSeparate(system.file("hk-40", package="oro.dicom"))
 > ##D require("oro.nifti")
@@ -132,6 +137,7 @@ oro.dicom: Rigorous - DICOM Input / Output (version = 0.5.0)
 > ##D image(dcmNifti)
 > ##D orthographic(dcmNifti)
 > ## End(Not run)
+> 
 > 
 > 
 > 
@@ -148,9 +154,11 @@ oro.dicom: Rigorous - DICOM Input / Output (version = 0.5.0)
 > 
 > ### ** Examples
 > 
+> 
 > x <- readDICOMFile(system.file("dcm/Abdo.dcm", package="oro.dicom"))
 > seriesDescription <- extractHeader(x$hdr, "SeriesDescription", numeric=FALSE)
 > IOP <- extractHeader(x$hdr, "ImageOrientationPatient", numeric=FALSE)
+> 
 > 
 > 
 > 
@@ -167,11 +175,13 @@ oro.dicom: Rigorous - DICOM Input / Output (version = 0.5.0)
 > 
 > ### ** Examples
 > 
+> 
 > x <- readDICOMFile(system.file("dcm/Abdo.dcm", package="oro.dicom"))
 > pixelSpacing <- extractHeader(x$hdr, "PixelSpacing", numeric=FALSE)
 > pSmat <- header2matrix(pixelSpacing, ncol=2)
 > IOP <- extractHeader(x$hdr, "ImageOrientationPatient", numeric=FALSE)
 > IOPmat <- header2matrix(IOP, ncol=6)
+> 
 > 
 > 
 > 
@@ -183,10 +193,11 @@ oro.dicom: Rigorous - DICOM Input / Output (version = 0.5.0)
 > 
 > ### Name: orthogonal-planes
 > ### Title: Orthogonal Planes
-> ### Aliases: is.axial is.coronal is.sagittal orthogonal-planes
+> ### Aliases: orthogonal-planes is.axial is.coronal is.sagittal
 > ### Keywords: misc
 > 
 > ### ** Examples
+> 
 > 
 > x <- readDICOMFile(system.file("dcm/Abdo.dcm", package="oro.dicom"))
 > iop <- header2matrix(extractHeader(x$hdr, "ImageOrientationPatient", FALSE), 6)
@@ -214,6 +225,7 @@ Warning in is.sagittal(iop) :
 > 
 > 
 > 
+> 
 > cleanEx()
 > nameEx("matchHeader")
 > ### * matchHeader
@@ -226,10 +238,12 @@ Warning in is.sagittal(iop) :
 > 
 > ### ** Examples
 > 
+> 
 > x <- readDICOMFile(system.file("dcm/Abdo.dcm", package="oro.dicom"))
 > modality <- extractHeader(x$hdr, "Modality", numeric=FALSE)
 > matchHeader(modality, "mr") # case insensitive by default
 [1] TRUE
+> 
 > 
 > 
 > 
@@ -246,12 +260,14 @@ Warning in is.sagittal(iop) :
 > 
 > ### ** Examples
 > 
+> 
 > ## pixelData = TRUE
 > ## The DICOM image data are read from readDICOM()
 > 
 > ## Not run: 
 > ##D dcmSphere <- readDICOM(system.file("sphere3", package="oro.dicom"), verbose=TRUE)
 > ## End(Not run)
+> 
 > 
 > 
 > 
@@ -263,10 +279,11 @@ Warning in is.sagittal(iop) :
 > 
 > ### Name: readDICOMFile
 > ### Title: Read Single DICOM File
-> ### Aliases: parseDICOMHeader readDICOMFile
+> ### Aliases: readDICOMFile parseDICOMHeader
 > ### Keywords: file
 > 
 > ### ** Examples
+> 
 > 
 > x <- readDICOMFile(system.file("dcm/Abdo.dcm", package="oro.dicom"))
 > graphics::image(t(x$img), col=grey(0:64/64), axes=FALSE, xlab="", ylab="",
@@ -278,6 +295,7 @@ Warning in is.sagittal(iop) :
 > 
 > 
 > 
+> 
 > cleanEx()
 > nameEx("str2time")
 > ### * str2time
@@ -286,10 +304,11 @@ Warning in is.sagittal(iop) :
 > 
 > ### Name: str2time
 > ### Title: Convert DICOM Time/Date Entry
-> ### Aliases: str2date str2time
+> ### Aliases: str2time str2date
 > ### Keywords: misc
 > 
 > ### ** Examples
+> 
 > 
 > str2date("19930822")
 [1] "22 Aug 1993"
@@ -303,11 +322,12 @@ $time
 > 
 > 
 > 
+> 
 > ### * <FOOTER>
 > ###
 > options(digits = 7L)
 > base::cat("Time elapsed: ", proc.time() - base::get("ptime", pos = 'CheckExEnv'),"\n")
-Time elapsed:  3.044 0.027 3.076 0 0 
+Time elapsed:  1.115 0.085 1.225 0 0 
 > grDevices::dev.off()
 null device 
           1 

@@ -58,6 +58,7 @@
 #' \url{http://medical.nema.org}
 #' @keywords misc
 #' @export dicomTable
+#' @importFrom utils setTxtProgressBar txtProgressBar write.table
 dicomTable <- function(hdrs, stringsAsFactors=FALSE, collapse="-",
                        colSort=TRUE, verbose=FALSE, debug=FALSE) {
   myMerge <- function(df1, df2) {
@@ -272,7 +273,7 @@ writeHeader <- function(dtable, filename, ...) {
 #' Check String Against DICOM Header Field to Produce Error Message or NEXT
 #' 
 #' A function designed to \code{break} out of loops given information (or the
-#' lackthereof) contained in the DICOM header.
+#' lack thereof) contained in the DICOM header.
 #' 
 #' 
 #' @param dcm is the DICOM list structure.
